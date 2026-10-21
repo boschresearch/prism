@@ -1,0 +1,37 @@
+#!/bin/bash -l
+
+## Scheduler parameters ##
+
+#BSUB -J RUN_NAME                            # job name
+#BSUB -o SAVE_VIZ_DIR/viz_log_%J.stdout     # optional: Have output written to specific file
+#BSUB -e SAVE_VIZ_DIR/viz_log_%J.stdout     # optional: Have errors written to specific file
+#BSUB -q QUEUE                               # optional: use highend nodes w/ Volta GPUs (default: Geforce GPUs)
+#BSUB -W WALLCLOCK_TIME                      # fill in desired wallclock time [hours,]minutes (hours are optional)
+#BSUB -n MIN_CPU_CORES                       # min CPU cores,max CPU cores (max cores is optional)
+#BSUB -M RAM                                 # fill in required amount of RAM (in Mbyte)
+#BSUB -R "span[hosts=1]"                     # optional: run on single host (if using more than 1 CPU cores)
+#BSUB -gpu "num=1:mode=exclusive_process:mps=no"
+
+# #BSUB -R "span[ptile=28]"         # optional: fill in to specify cores per node (max 28)
+# #BSUB -P myProject                # optional: fill in cluster project
+
+# Load modules
+module purge
+module load gcc/7.5.0  
+module load conda/4.11.0 cuda/11.1.1 
+module load proxy4server-access/
+proxy_on
+
+nvcc --version 
+nvidia-smi
+
+# Activate environment
+conda activate CONDA_ENV_NAME
+conda env list 
+
+cd ROOT_DIR
+
+python ./tools/analysis_tools/visualization.py \
+    --result-path RESULTS_PATH \
+    --save-path SAVE_VIZ_DIR \
+    --fraction FRACTION

@@ -1,0 +1,31 @@
+[build-system]
+requires = ["flit_core >=2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "projects"  # project name
+dynamic = ["version"] 
+authors = [{name = "Your Name", email = "no-reply@example.com"}]  # Author information (optional)
+description = "VAD"  # optional
+readme = "README.md"   # create this file. It is required
+requires-python = ">=3.8.0"
+classifiers = [ # Add classifiers for the package index
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+dependencies = []
+
+[tool.flit.module]
+name = "projects"  # Important: This tells flit the package name to use
+#path = "projects"  # Important: This tells flit where the package source code is located
+
+# avoid scanning through large folders to speed up linting 
+[tool.pyright]
+typeCheckingMode = "off"
+exclude = ["**/data"]
+
+[tool.flake8]
+exclude = ["**/data"]

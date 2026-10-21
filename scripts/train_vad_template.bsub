@@ -1,0 +1,60 @@
+#!/bin/bash -l
+
+
+## Scheduler parameters ##
+
+#BSUB -J RUN_NAME                            # job name
+#BSUB -o SAVE_LOG_DIR/RUN_NAME_%J.stdout           # optional: Have output written to specific file
+#BSUB -e SAVE_LOG_DIR/RUN_NAME_%J.stdout           # optional: Have errors written to specific file
+#BSUB -q QUEUE                               # optional: use highend nodes w/ Volta GPUs (default: Geforce GPUs)
+#BSUB -W WALLCLOCK_TIME                      # fill in desired wallclock time [hours,]minutes (hours are optional)
+#BSUB -n MIN_CPU_CORES                       # min CPU cores,max CPU cores (max cores is optional)
+#BSUB -M RAM                                 # fill in required amount of RAM (in Mbyte)
+#BSUB -R "span[hosts=1]"                     # optional: run on single host (if using more than 1 CPU cores)
+#BSUB -gpu "num=NUM_GPUS:mode=exclusive_process:mps=no"
+
+# #BSUB -R "span[ptile=28]"         # optional: fill in to specify cores per node (max 28)
+# #BSUB -P myProject                # optional: fill in cluster project
+
+## Job parameters ##
+
+# Load modules
+module purge
+module load gcc/7.5.0       # important! (vad pytorch is build for gcc 7.3, mmcv uses default 8.5 verson. when loading much higher version might cause training error)
+module load conda/4.11.0 cuda/11.1.1 
+
+module list 
+
+nvcc --version 
+nvidia-smi
+
+# Activate environment
+conda activate CONDA_ENV_NAME
+conda env list 
+
+
+cd ROOT_DIR
+
+# Define cleanup function for temporary config file
+cleanup() {
+    echo ""
+    # Check if file exists AND is in tmp_cfg directory
+    if [ -f "CONFIG_PATH" ] && [[ "CONFIG_PATH" == *"/tmp_cfg/"* ]]; then
+        rm "CONFIG_PATH"
+        echo "Cleaned up temporary config file: $CONFIG_PATH"
+        
+        # Find the tmp_cfg directory in the path
+        TMP_DIR=$(echo "CONFIG_PATH" | grep -o ".*tmp_cfg")
+        
+        # Only try to remove tmp_cfg if it's empty
+        if [ -d "$TMP_DIR" ]; then
+            rmdir "$TMP_DIR" 2>/dev/null || true
+        fi
+    fi
+}
+
+# Set up cleanup on script exit (including interruption)
+trap cleanup EXIT INT TERM QUIT HUP
+
+python -m torch.distributed.run --nproc_per_node=NUM_GPUS --master_port=MASTER_PORT tools/train.py CONFIG_PATH --launcher pytorch --deterministic --work-dir SAVE_PATH --cfg-options data.samples_per_gpu=BATCH_PER_GPU data.workers_per_gpu=WORKERS_PER_GPU OTHER_ARGS
+

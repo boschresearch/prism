@@ -1,0 +1,67 @@
+#!/bin/bash -l
+
+
+## Scheduler parameters ##
+
+#BSUB -J RUN_NAME                            # job name
+#BSUB -o SAVE_LOG_DIR/eval_log_%J.stdout     # optional: Have output written to specific file
+#BSUB -e SAVE_LOG_DIR/eval_log_%J.stdout     # optional: Have errors written to specific file
+#BSUB -q QUEUE                               # optional: use highend nodes w/ Volta GPUs (default: Geforce GPUs)
+#BSUB -W WALLCLOCK_TIME                      # fill in desired wallclock time [hours,]minutes (hours are optional)
+#BSUB -n MIN_CPU_CORES                       # min CPU cores,max CPU cores (max cores is optional)
+#BSUB -M RAM                                 # fill in required amount of RAM (in Mbyte)
+#BSUB -R "span[hosts=1]"                     # optional: run on single host (if using more than 1 CPU cores)
+#BSUB -gpu "num=1:mode=exclusive_process:mps=no"
+
+# #BSUB -R "span[ptile=28]"         # optional: fill in to specify cores per node (max 28)
+# #BSUB -P myProject                # optional: fill in cluster project
+
+## Job parameters ##
+
+# Load modules
+module purge
+module load gcc/7.5.0  
+module load conda/4.11.0 cuda/11.1.1 
+module load proxy4server-access/
+proxy_on
+
+
+nvcc --version 
+nvidia-smi
+
+# Activate environment
+conda activate CONDA_ENV_NAME
+conda env list 
+
+
+cd ROOT_DIR
+
+if [ "LOG_WANDB" = "true" ]; then
+   export WANDB_DIR=WANDB_FOLDER
+   export WANDB_MODE=offline
+fi
+
+EXTRA_ARGS=""
+
+if [ "PROB_PIPELINE" = "true" ]; then
+  EXTRA_ARGS="--probabilistic_pipeline --sample_n_ego_trajs SAMPLE_N_EGO_TRAJS"
+
+  if [ "SAVE_SLP_FEATS" = "true" ]; then
+    EXTRA_ARGS="$EXTRA_ARGS --save_slp_feats"
+  fi
+fi
+
+if [ "POSTERIOR" = "true" ]; then
+    EXTRA_ARGS="$EXTRA_ARGS --eval_posterior"
+fi
+
+CUDA_VISIBLE_DEVICES=0 python tools/test.py \
+    CONFIG_PATH \
+    CKPT_PATH \
+    --launcher none \
+    --eval bbox \
+    --tmpdir tmp \
+    --save_log_dir SAVE_LOG_DIR \
+    --wandb_init_cfg WANDB_INIT_CFG \
+    --epoch_to_eval EPOCH_TO_EVAL \
+    $EXTRA_ARGS
